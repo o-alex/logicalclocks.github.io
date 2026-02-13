@@ -146,3 +146,121 @@ The tags will then be searchable using the free text search box located at the t
     <figcaption>Search for tags in the feature store</figcaption>
   </figure>
 </p>
+
+## Mandatory Tags
+
+!!! info "Enterprise"
+    Mandatory tags are available only in Hopsworks Enterprise.
+
+Administrators can designate certain tag schemas as **mandatory** for feature groups, feature views, and/or training datasets.
+When a tag schema is mandatory for an artifact type, every artifact of that type must have that tag attached with valid values.
+This provides a governance mechanism to ensure that all artifacts carry the metadata your organization requires — for example, data classification, ownership, or retention policies.
+
+### How mandatory tags work
+
+Mandatory tags are enforced at two levels:
+
+- **Cluster-wide:** An administrator can configure mandatory tags in `Cluster Settings`. These apply to all projects on the cluster.
+- **Project-specific:** A project administrator can configure additional mandatory tags in `Project Settings`. These apply on top of any cluster-wide mandatory tags.
+
+For each mandatory tag, the administrator selects:
+
+- The **tag schema** to require.
+- The **artifact types** it applies to: feature groups, feature views, training datasets, or any combination.
+
+!!! note
+    Project-level mandatory tags are additive. They cannot remove or override cluster-wide mandatory tags — they can only add additional requirements for that project.
+
+### Configuring mandatory tags (Administrators)
+
+#### Cluster-wide
+
+Navigate to `Cluster Settings` > `Mandatory tags`. From there, select a tag schema and choose which artifact types it should be required for. Once saved, the mandatory tag applies to all projects on the cluster.
+
+#### Project-specific
+
+Navigate to `Project Settings` > `Mandatory tags`. The process is the same as for cluster-wide settings, but the configuration applies only to the current project.
+
+### Experiencing mandatory tags (Users)
+
+When mandatory tags are configured, users will encounter them in the following ways:
+
+#### In the UI
+
+When creating or editing a feature group, feature view, or training dataset, any mandatory tags will be displayed in the form automatically.
+Mandatory tags cannot be removed — they are always shown and must have valid values set.
+
+If an artifact has missing mandatory tags (e.g., because a mandatory tag was added after the artifact was created), a warning indicator will be displayed on the artifact page.
+
+#### In the Python SDK
+
+When you retrieve an artifact that has missing mandatory tags, the SDK will emit a warning:
+
+=== "Python"
+
+    ```python
+    fg = fs.get_feature_group("transactions_4h_aggs_fraud_batch_fg", version=1)
+    # UserWarning: Feature group 'transactions_4h_aggs_fraud_batch_fg' has missing mandatory tags: ['data_privacy', 'data_owner']
+    ```
+
+You can check which mandatory tags are missing on an artifact by using the `missing_mandatory_tags` property:
+
+=== "Python"
+
+    ```python
+    fg = fs.get_feature_group("transactions_4h_aggs_fraud_batch_fg", version=1)
+
+    # Check for missing mandatory tags
+    fg.missing_mandatory_tags
+    # Returns: ['data_privacy', 'data_owner']
+    ```
+
+### Attaching mandatory tags
+
+#### At creation time
+
+You can attach tags when creating an artifact by passing a `tags` parameter. This is the recommended approach for mandatory tags, as it ensures the artifact is compliant from the start.
+
+=== "Python"
+
+    ```python
+    fg = fs.create_feature_group(
+        name="transactions_4h_aggs_fraud_batch_fg",
+        version=1,
+        primary_key=["cc_num"],
+        event_time="datetime",
+        tags={
+            "data_privacy": {
+                "business_unit": "Fraud",
+                "data_owner": "email@hopsworks.ai",
+                "pii": True
+            },
+            "data_owner": "fraud-team"
+        }
+    )
+    ```
+
+#### After creation
+
+You can also attach tags to an existing artifact using the `add_tag()` method:
+
+=== "Python"
+
+    ```python
+    fg = fs.get_feature_group("transactions_4h_aggs_fraud_batch_fg", version=1)
+
+    # Attach a mandatory tag
+    fg.add_tag("data_privacy", {
+        "business_unit": "Fraud",
+        "data_owner": "email@hopsworks.ai",
+        "pii": True
+    })
+    ```
+
+The same approach works for feature views and training datasets.
+
+### Limitations
+
+- Mandatory tags are an **enterprise-only** feature.
+- Mandatory tags are supported on **feature groups**, **feature views**, and **training datasets**. They are not supported on model serving entities.
+- Only **administrators** can configure which tags are mandatory (cluster-wide or project-level).
