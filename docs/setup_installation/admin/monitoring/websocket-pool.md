@@ -109,7 +109,8 @@ A few representative pod shapes at chart-default settings:
 | 500m | unset | 12 | 250 |
 
 The rendered post-boot ConfigMap carries a comment explaining the derivation, so an admin reading the live cluster's `asadmin` settings can see which inputs produced the pool size, including whether the memory cap fired.
-Override `threadsPerCore` if your CPU-to-connection ratio differs from the default rule of thumb (25 connections per CPU core sustained / 50 connections per CPU core burst), and raise `jvm.memory.buffer` alongside large CPU bumps so the memory cap doesn't trim the burst ceiling.
+Override `threadsPerCore` if your CPU-to-connection ratio differs from the default rule of thumb of 12.5 sustained connections per CPU core and 25 burst connections per CPU core (the chart-default multipliers are `core: 25` and `max: 50` threads-per-core, halved by the 2 threads-per-WebSocket-connection ratio).
+Raise `jvm.memory.buffer` alongside large CPU bumps so the memory cap doesn't trim the burst ceiling.
 
 Each thread is otherwise idle (it blocks on stream I/O), so the dominant resource cost of raising these numbers is JVM thread overhead in `hopsworks-instance` pods.
 A few hundred extra threads add a few tens of megabytes of stack memory at `-Xss512k`, which is small relative to the Payara JVM heap.
