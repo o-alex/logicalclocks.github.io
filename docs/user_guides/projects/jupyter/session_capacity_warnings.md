@@ -10,15 +10,15 @@ The badges sit next to the action button on three pages:
 
 - **Jupyter**: next to the `Jupyter server` card title and the `Run Jupyter` button.
 
-  ![WebSocket warnings on the Jupyter page](../../../assets/images/user_guides/jupyter/websocket-warnings-jupyter.png)
+  ![WebSocket warnings on the Jupyter page](../../../assets/images/guides/jupyter/websocket-warnings-jupyter.png)
 
 - **Terminal**: next to the `Start Terminal` button inside the terminal panel.
 
-  ![WebSocket warnings on the Terminal panel](../../../assets/images/user_guides/jupyter/websocket-warnings-terminal.png)
+  ![WebSocket warnings on the Terminal panel](../../../assets/images/guides/jupyter/websocket-warnings-terminal.png)
 
 - **Apps**: next to the Apps card title and the per-row Start button.
 
-  ![WebSocket warnings on the Apps page](../../../assets/images/user_guides/jupyter/websocket-warnings-apps.png)
+  ![WebSocket warnings on the Apps page](../../../assets/images/guides/jupyter/websocket-warnings-apps.png)
 
 ## What each badge means
 
