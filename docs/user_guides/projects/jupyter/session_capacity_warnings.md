@@ -38,7 +38,8 @@ On a single-instance deployment the two badges always agree and you only see one
 
 ## What happens when a badge turns red
 
-- `Run Jupyter`, `Start Terminal`, and per-row `Start App` buttons are disabled while either badge is red.
+- `Run Jupyter`, `Start Terminal`, and per-row `Start App` buttons are disabled while the **cluster** badge is red (no instance has capacity to serve a new session).
+  While only the instance badge is red the buttons stay enabled because refreshing or signing back in may land you on a different instance pod that still has capacity.
 - An already-running Jupyter server keeps working.
   Opening a new notebook tab inside a running Jupyter server may still fail with a `WebSocket pool full` error if the proxy slot the new tab needs is unavailable.
 - An already-running terminal session keeps working.
