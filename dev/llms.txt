@@ -300,6 +300,12 @@
 - [Agents](https://docs.hopsworks.ai/latest/user_guides/agents/) ([md](https://docs.hopsworks.ai/latest/user_guides/agents/index.md))
 - [Agent Tasks](https://docs.hopsworks.ai/latest/user_guides/agents/tasks/) ([md](https://docs.hopsworks.ai/latest/user_guides/agents/tasks/index.md))
 - [Agent Deployments](https://docs.hopsworks.ai/latest/user_guides/agents/deployments/) ([md](https://docs.hopsworks.ai/latest/user_guides/agents/deployments/index.md))
+- [Chat Contract](https://docs.hopsworks.ai/latest/user_guides/agents/chat_contract/) ([md](https://docs.hopsworks.ai/latest/user_guides/agents/chat_contract/index.md))
+- [Agent Memory](https://docs.hopsworks.ai/latest/user_guides/agents/memory/) ([md](https://docs.hopsworks.ai/latest/user_guides/agents/memory/index.md))
+- [Feedback](https://docs.hopsworks.ai/latest/user_guides/agents/feedback/) ([md](https://docs.hopsworks.ai/latest/user_guides/agents/feedback/index.md))
+- [Evaluation](https://docs.hopsworks.ai/latest/user_guides/agents/evaluation/) ([md](https://docs.hopsworks.ai/latest/user_guides/agents/evaluation/index.md))
+- [Monitoring](https://docs.hopsworks.ai/latest/user_guides/agents/monitoring/) ([md](https://docs.hopsworks.ai/latest/user_guides/agents/monitoring/index.md))
+- [Failure Analysis](https://docs.hopsworks.ai/latest/user_guides/agents/failure_analysis/) ([md](https://docs.hopsworks.ai/latest/user_guides/agents/failure_analysis/index.md))
 - [Migration 3.X to 4.0](https://docs.hopsworks.ai/latest/user_guides/migration/40_migration/) ([md](https://docs.hopsworks.ai/latest/user_guides/migration/40_migration/index.md))
 
 ## Administration
@@ -362,6 +368,7 @@
 - [Service Operations](https://docs.hopsworks.ai/latest/setup_installation/admin/operationLogs/) ([md](https://docs.hopsworks.ai/latest/setup_installation/admin/operationLogs/index.md))
 - [Query Engine (Trino)](https://docs.hopsworks.ai/latest/setup_installation/admin/trino/) ([md](https://docs.hopsworks.ai/latest/setup_installation/admin/trino/index.md))
 - [Superset](https://docs.hopsworks.ai/latest/setup_installation/admin/superset/) ([md](https://docs.hopsworks.ai/latest/setup_installation/admin/superset/index.md))
+- [GPU Scheduling with Run:ai](https://docs.hopsworks.ai/latest/setup_installation/admin/run_ai/) ([md](https://docs.hopsworks.ai/latest/setup_installation/admin/run_ai/index.md))
 
 ### Helm Chart Values Reference
 - [Helm chart values reference](https://docs.hopsworks.ai/latest/setup_installation/common/helm_chart_values/) ([md](https://docs.hopsworks.ai/latest/setup_installation/common/helm_chart_values/index.md))
@@ -408,6 +415,7 @@
 - [hopsworks.core](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> alerts​_api](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/alerts_api/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/alerts_api/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> app​_api](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/app_api/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/app_api/index.md))
+- [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> costs​_api](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/costs_api/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/costs_api/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> dataset​_api](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/dataset_api/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/dataset_api/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> env​_var​_api](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/env_var_api/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/env_var_api/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> environment​_api](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/environment_api/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/environment_api/index.md))
@@ -426,6 +434,7 @@
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> trino​_api](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/trino_api/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/trino_api/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> trino​_catalog​_api](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/trino_catalog_api/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/trino_catalog_api/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> users​_api](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/users_api/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/core/users_api/index.md))
+- [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> cost](https://docs.hopsworks.ai/latest/python-api/hopsworks/cost/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/cost/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> env​_var](https://docs.hopsworks.ai/latest/python-api/hopsworks/env_var/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/env_var/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> environment](https://docs.hopsworks.ai/latest/python-api/hopsworks/environment/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/environment/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> execution](https://docs.hopsworks.ai/latest/python-api/hopsworks/execution/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/execution/index.md))
@@ -434,6 +443,7 @@
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> git​_provider](https://docs.hopsworks.ai/latest/python-api/hopsworks/git_provider/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/git_provider/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> git​_remote](https://docs.hopsworks.ai/latest/python-api/hopsworks/git_remote/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/git_remote/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> git​_repo](https://docs.hopsworks.ai/latest/python-api/hopsworks/git_repo/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/git_repo/index.md))
+- [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> gpu​_availability](https://docs.hopsworks.ai/latest/python-api/hopsworks/gpu_availability/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/gpu_availability/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> job](https://docs.hopsworks.ai/latest/python-api/hopsworks/job/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/job/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> job​_schedule](https://docs.hopsworks.ai/latest/python-api/hopsworks/job_schedule/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/job_schedule/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> kafka​_schema](https://docs.hopsworks.ai/latest/python-api/hopsworks/kafka_schema/) ([md](https://docs.hopsworks.ai/latest/python-api/hopsworks/kafka_schema/index.md))
@@ -510,6 +520,7 @@
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> deployable​_component](https://docs.hopsworks.ai/latest/python-api/hsml/deployable_component/) ([md](https://docs.hopsworks.ai/latest/python-api/hsml/deployable_component/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> deployment](https://docs.hopsworks.ai/latest/python-api/hsml/deployment/) ([md](https://docs.hopsworks.ai/latest/python-api/hsml/deployment/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> deployment​_logging​_config](https://docs.hopsworks.ai/latest/python-api/hsml/deployment_logging_config/) ([md](https://docs.hopsworks.ai/latest/python-api/hsml/deployment_logging_config/index.md))
+- [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> deployment​_memory​_config](https://docs.hopsworks.ai/latest/python-api/hsml/deployment_memory_config/) ([md](https://docs.hopsworks.ai/latest/python-api/hsml/deployment_memory_config/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> deployment​_schema](https://docs.hopsworks.ai/latest/python-api/hsml/deployment_schema/) ([md](https://docs.hopsworks.ai/latest/python-api/hsml/deployment_schema/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> deployment​_tracing​_config](https://docs.hopsworks.ai/latest/python-api/hsml/deployment_tracing_config/) ([md](https://docs.hopsworks.ai/latest/python-api/hsml/deployment_tracing_config/index.md))
 - [<code class="doc-symbol doc-symbol-nav doc-symbol-module"></code> deployment​_version](https://docs.hopsworks.ai/latest/python-api/hsml/deployment_version/) ([md](https://docs.hopsworks.ai/latest/python-api/hsml/deployment_version/index.md))
