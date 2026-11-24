@@ -3212,12 +3212,9 @@ This has the advantage that cheap storage can be turned into a cloud native data
 These kinds of storages are often the source for raw data from which features can be engineered.
 
 In this guide, you will configure a Data Source in Hopsworks to save all the authentication information needed in order to set up a connection to your AWS S3 bucket.
+The same data source also connects to an S3-compatible store such as MinIO, Dell ECS or Ceph, see [S3-compatible storage][data-source-s3-compatible].
 When you're finished, you'll be able to read files using Spark through Hopsworks APIs.
 You can also use the connector to write out training data from the Feature Store, in order to make it accessible by third parties.
-
-!!! note
-    Currently, it is only possible to create data sources in the Hopsworks UI.
-You cannot create a data source programmatically.
 
 ## Prerequisites
 
@@ -3228,9 +3225,12 @@ Before you begin this guide you'll need to retrieve the following information fr
 - **Path (Optional):** If needed, a path can be defined to ensure that all operations are restricted to a specific location within the bucket.
 - **Region (Optional):** You will need an S3 region to have complete control over data when managing the feature group that relies on this data source.
   The region is identified by its code.
+  An S3-compatible store requires it.
+- **Endpoint (S3-compatible storage only):** The address of the store, as `http(s)://host[:port]`.
 - **Authentication Method:** You can authenticate using Access Key/Secret, or use IAM roles.
   If you want to use an IAM role it either needs to be attached to the entire Hopsworks cluster or Hopsworks needs to be able to assume the role.
-  See [IAM role documentation](../../../../setup_installation/admin/roleChaining.md) for more information.
+  See [IAM role documentation][aws-iam-role-chaining] for more information.
+  An S3-compatible store authenticates with Access Key/Secret only.
 - **Server Side Encryption details:** If your bucket has server side encryption (SSE) enabled, make sure you know which algorithm it is using (AES256 or SSE-KMS).
   If you are using SSE-KMS, you need the resource ARN of the managed key.
 
@@ -3240,7 +3240,7 @@ Before you begin this guide you'll need to retrieve the following information fr
 
 Head to the `Data Sources` view on Hopsworks (1) and click `New data source` (2).
 The `Add a data source` catalog lists the available sources, grouped under `Object storage`, `Data warehouse`, `Database`, `Streaming` and `API & SaaS`.
-Pick the `AWS S3` card to open the creation form.
+Pick the `S3` card to open the creation form.
 
 <figure markdown>
   ![Data Source Creation](../../../../assets/images/guides/fs/data_source/data_source_overview.png)
@@ -3250,10 +3250,12 @@ Pick the `AWS S3` card to open the creation form.
 ### Step 2: Enter Bucket Information
 
 Enter the details for your S3 connector.
-The `Source` line at the top of the form shows `AWS S3`, and `Change source` takes you back to the catalog.
+The `Source` line at the top of the form shows `S3`, and `Change source` takes you back to the catalog.
 Start by giving it a **name** and an optional **description**.
 And set the name of the S3 Bucket you want to point the connector to.
 Optionally, specify the region if you wish to have a Hopsworks-managed feature group stored using this connector.
+For an S3-compatible store, fill in the **Endpoint** as well; the form then offers **Path-style access**, see [S3-compatible storage][data-source-s3-compatible].
+Under the region, the form shows the URL that requests go to, built from the bucket, path, endpoint, path style and region, for example `https://landing.s3.eu-north-1.amazonaws.com/...` on AWS.
 
 <figure markdown>
   ![S3 Connector Creation](../../../../assets/images/guides/fs/data_source/s3_creation.png)
@@ -3268,16 +3270,16 @@ Choose instance role if you have an EC2 instance profile attached to your Hopswo
 
 #### Temporary Credentials
 
-Choose temporary credentials if you are using [AWS Role chaining](../../../../setup_installation/admin/roleChaining.md) to control the access permission on a project and user role base.
+Choose temporary credentials if you are using [AWS Role chaining][aws-iam-role-chaining] to control the access permission on a project and user role base.
 Once you have selected *Temporary Credentials* select the role that give access to the specified bucket.
-For this role to appear in the list it needs to have been configured by an administrator, see the [AWS Role chaining documentation](../../../../setup_installation/admin/roleChaining.md) for more details.
+For this role to appear in the list it needs to have been configured by an administrator, see the [AWS Role chaining documentation][aws-iam-role-chaining] for more details.
 
 !!! warning "Session Duration"
     By default, the session duration that the role will be assumed for is 1 hour or 3600 seconds.
-    This means if you want to use the data source for example to write [training data to S3](../usage.md#writing-training-data), the training dataset creation cannot take longer than one hour.
+    This means if you want to use the data source for example to write [training data to S3][writing-training-data], the training dataset creation cannot take longer than one hour.
 
     Your administrator can change the default session duration for AWS data sources, by first [increasing the max session duration of the IAM Role](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use.html#id_roles_use_view-role-max-session) that you are assuming.
-    And then changing the `fs_data_source_session_duration` [configuration variable](../../../../setup_installation/admin/variables.md) to the appropriate value in seconds.
+    And then changing the `fs_data_source_session_duration` [configuration variable][cluster-configuration] to the appropriate value in seconds.
 
 #### Access Key/Secret
 
@@ -3303,11 +3305,11 @@ If you have SSE-KMS enabled for your bucket, you can find the key ARN in the "Pr
 
 Here you can specify any additional spark options that you wish to add to the spark context at runtime.
 Multiple options can be added as key - value pairs.
+Options starting with `fs.s3a.` configure Spark's S3A client, for example `fs.s3a.endpoint` to reach a regional AWS endpoint.
 
-To connect to a S3 compatible storage other than AWS S3, you can add the option with key as `fs.s3a.endpoint` and the endpoint you want to use as value.
-The data source will then be able to read from your specified S3 compatible storage.
-
-You can also add options to configure the S3A client. For example, to disable SSL certificate verification, you can add the option with key as `fs.s3a.connection.ssl.enabled` and value as `false`. You can also configure other options such as `fs.s3a.path.style.access` if you use s3 compliant storage which does not support virtual hosting.
+To connect to an S3-compatible store, set the **Endpoint** instead of the `fs.s3a.endpoint` and `fs.s3a.path.style.access` options.
+Spark reads those options in full, the Python engine and the Arrow Flight server only in part, and the backend not at all, so browsing and deleting data still reach AWS.
+The endpoint reaches every Hopsworks client, and a data source cannot have both.
 
 !!! warning "Spark Configuration"
     When using the data source within a Spark application, the credentials are set at application level.
@@ -3319,9 +3321,91 @@ You can also add options to configure the S3A client. For example, to disable SS
 
 Click on "Save Credentials".
 
+## S3-compatible storage { #data-source-s3-compatible }
+
+An S3 data source with an **Endpoint** connects to an S3-compatible store instead of AWS.
+The backend, Spark, the Python engine and the Arrow Flight server all use the endpoint, so browsing, reading, writing and deleting data all reach the store.
+
+Set these fields:
+
+- **Endpoint:** `http(s)://host[:port]`, without a path, for example `https://s3.example.com:9021`.
+  The scheme decides whether the connection uses TLS.
+  When the store's certificate comes from a private CA, an administrator makes the cluster trust it, see [Private CA Trust][private-ca-trust].
+  Hopsworks refuses `localhost` and loopback, link-local and unspecified addresses.
+- **Path-style access:** Turn it on when the store does not resolve a host name per bucket, which is the case for most on-premises stores.
+  The bucket is then sent in the URL path, `https://s3.example.com:9021/landing/...`, instead of the host name, `https://landing.s3.example.com:9021/...`; the request URL under the region shows which.
+  With it off, Delta tables read through the Arrow Flight server still use path-style requests, since the server's Delta reader cannot build virtual-hosted URLs for a custom endpoint, so the store must accept both.
+- **Region:** The region the store is configured with.
+  Left empty, it is `us-east-1`, which stores without regions accept; the field shows it as its placeholder.
+  A store configured with another region refuses requests signed for `us-east-1`, so set its region here.
+- **Access Key/Secret:** Required.
+  Instance roles and temporary credentials go through AWS, so the form does not offer them with an endpoint.
+
+<figure markdown>
+  ![S3 data source form with an endpoint, path-style access, an optional region, the request URL and access keys](../../../../assets/images/guides/fs/data_source/s3_compatible_creation.png)
+  <figcaption>S3 Connector on an S3-compatible store</figcaption>
+</figure>
+
+The data source can also be created with the Python API:
+
+```python
+import hopsworks
+from hsfs.storage_connector import S3Connector
+
+
+project = hopsworks.login()
+fs = project.get_feature_store()
+
+sc = S3Connector(
+    id=None,
+    name="ecs_landing",
+    featurestore_id=fs.id,
+    bucket="landing",
+    region="us-east-1",
+    access_key="<access key>",
+    secret_key="<secret key>",
+    endpoint="https://s3.example.com:9021",
+    path_style_access=True,
+)
+sc.save()
+```
+
+What the store must support:
+
+- Signature Version 4 requests signed with an access key and secret key.
+- `Content-MD5` on multi-object deletes, which Hopsworks sends when it deletes the data of a feature group.
+- Conditional writes (`If-None-Match`), for Delta tables written by the Python engine, which uses them to commit.
+
+Things to know:
+
+- Changing the endpoint or the bucket of a data source points it at different storage.
+  Data already written stays where it is, so feature groups on the data source no longer find it.
+- With an endpoint, Hopsworks sends a checksum only where an operation requires one, and `Content-MD5` on multi-object deletes, because stores such as Dell ECS refuse the CRC32 and CRC64NVME checksums that recent AWS SDKs add by default.
+  The Spark options `fs.s3a.checksum.generation` and `fs.s3a.create.checksum.algorithm` turn them back on for Spark.
+- An update that leaves the endpoint out, as an older client sends it, keeps the stored endpoint.
+  To remove the endpoint, set it to an empty string.
+- Spark sets the endpoint for the data source's bucket only, so other buckets in the same Spark application still reach AWS.
+  A data source with an endpoint raises an error for a path in another bucket.
+- Spark creates one S3 client per bucket and reuses it for the life of the application.
+  A data source whose bucket name the application already used on another store, or with another endpoint, raises an error, and works in a new Spark application process, such as a new job run.
+  This includes a Glue table whose location is in a bucket with that name, and a data source without an endpoint reading a path in a bucket with that name.
+  It holds across a reconnect to Hopsworks and across a new SparkContext in the same process, since Hadoop keeps its S3 clients for the process.
+  A changed region or key also takes effect in the next Spark application.
+- The endpoint needs Hopsworks 5.3 or later on the cluster and in the Python or Java client.
+  An older client ignores the endpoint and sends requests to AWS.
+
+!!! api "API reference"
+
+    - <code class="doc-symbol doc-symbol-class"></code> [`S3Connector`][hsfs.storage_connector.S3Connector]
+        - <code class="doc-symbol doc-symbol-attribute"></code> [`endpoint`][hsfs.storage_connector.S3Connector.endpoint]
+        - <code class="doc-symbol doc-symbol-attribute"></code> [`path_style_access`][hsfs.storage_connector.S3Connector.path_style_access]
+        - <code class="doc-symbol doc-symbol-method"></code> [`save`][hsfs.storage_connector.StorageConnector.save]
+
+    <a class="hops-api-cta" href="../../../../../python-api/hopsworks/">Browse the full Python API :material-arrow-right:</a>
+
 ## Next Steps
 
-Move on to the [usage guide for data sources](../usage.md) to see how you can use your newly created S3 connector.
+Move on to the [usage guide for data sources][data-source-usage] to see how you can use your newly created S3 connector.
 
 ================================================================================
 # AWS Glue
@@ -19470,15 +19554,14 @@ The `FEATURE ENGINEERING` environments can be used in [Jupyter notebooks](../jup
 
 The `MODEL TRAINING` environments can be used in [Jupyter notebooks](../jupyter/python_notebook.md) or a [Python job](../jobs/python_job.md).
 
-- `torch-training-pipeline` to train and fine-tune PyTorch models and LLMs
-- `lora-fine-tuning-torch` to fine-tune LLMs on one host with LoRA and QLoRA, using Axolotl, Unsloth, PEFT, TRL, DeepSpeed or Transformer Engine; LLaMA-Factory is run as `llamafactory-cli`
+- `torch-training-pipeline` to train PyTorch models, and to fine-tune LLMs on one host with LoRA and QLoRA, using TRL, PEFT, Unsloth or DeepSpeed
 - `pandas-training-pipeline` to train XGBoost, Catboost and Sklearn models
 
 The Ray environments are used in [Ray notebooks](../jupyter/ray_notebook.md) and [Ray jobs](../jobs/ray_job.md).
 
 - `ray-training-pipeline` to run Ray Train, Tune and Data workloads
 - `ray-torch-training-pipeline` to train PyTorch models across several nodes with Ray Train
-- `rl-post-training` for reinforcement learning post-training of LLMs with SkyRL and OpenRLHF, generating rollouts with vLLM; SkyRL-OpenHands is run as `openhands`
+- `rl-post-training` for reinforcement learning post-training of LLMs with SkyRL, training with FSDP and generating rollouts with vLLM
 
 ### Inference, agents and apps
 
@@ -19491,6 +19574,10 @@ The `INFERENCE / AGENTS / APPS` environments can be used in a deployment using a
 - `python-app-pipeline` to build interactive applications with Streamlit
 - `vllm-inference-pipeline` to load and serve LLMs with vLLM inference engine
 - `minimal-inference-pipeline` to install your own custom framework, contains a minimal set of dependencies
+
+A TensorFlow Serving deployment runs its transformer in `tensorflow-inference-pipeline` unless the deployment names another environment.
+A cluster installed with the Helm value `hopsworks.variables.tensorflow_inference_enabled` set to `false` has no `tensorflow-inference-pipeline`, which keeps 3.65 GB of image layers out of its registry.
+On such a cluster a deployment that would run in it is refused, because its image is not in the registry, so name another environment for the transformer, such as `pandas-inference-pipeline`.
 
 ## Next steps
 
@@ -33597,6 +33684,10 @@ They are first-class fields on the predictor configuration.
 
 Both the `VLLM` and `VLLM_OMNI` variants run the official upstream vLLM images published on [Docker Hub](https://hub.docker.com): [`vllm/vllm-openai`](https://hub.docker.com/r/vllm/vllm-openai) and [`vllm/vllm-omni`](https://hub.docker.com/r/vllm/vllm-omni) respectively.
 
+!!! note "vLLM-Omni can be disabled per cluster"
+    The `VLLM_OMNI` variant is offered only on clusters where the administrator has not disabled it, see [vLLM serving runtimes][vllm-disable-omni].
+    On a cluster where it is disabled, an existing vLLM-Omni deployment cannot be started or updated until you switch it to the `VLLM` variant; it can still be stopped and deleted.
+
 !!! tip "Python SDK"
     From the Python SDK, the variant is selected with the `vllm_variant` keyword
     argument. See [`Model.deploy()`][hsml.model.Model.deploy] in the API reference.
@@ -33608,7 +33699,7 @@ If not set, Hopsworks picks the **highest** image version advertised for the cho
 Set it explicitly to pin a deployment to a specific image, which is useful when you need a stable, reproducible runtime.
 
 The list of available versions per variant is advertised by the cluster administrator through the
-`kube_serving_vllm_versions` and `kube_serving_vllm_omni_versions` Hopsworks variables.
+`kube_serving_vllm_versions` and `kube_serving_vllm_omni_versions` Hopsworks variables, see [vLLM serving runtimes][vllm-image-tags].
 
 Hopsworks ships exactly one default image version for each of the **vLLM** and **vLLM-Omni** variants.
 Any additional versions exposed in the **Version** dropdown are managed by the cluster administrator.
@@ -40874,6 +40965,7 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `agent_base_image_name` | String | `agent-job` | Settings.java |
 | `agent_default_max_turns` | Integer | `50` | Settings.java |
 | `agent_default_model` | String | `claude-sonnet-4-5` | Settings.java |
+| `agent_deployment_claude_login_enabled` | Boolean | `true` | Settings.java |
 | `agent_deployment_otel_cpu` | Double | `0.5` | Settings.java |
 | `agent_deployment_otel_enabled` | Boolean | `true` | Settings.java |
 | `agent_deployment_otel_image` | String | `docker.hops.works/hops-otel:5.0.0-SNAPSHOT` | Settings.java |
@@ -40888,6 +40980,7 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `alert_manager_config_map` | String | `hopsworks-release-alertmanager` | KubeSettings.java |
 | `alert_receiver_load_timeout` | Integer | `300` | Settings.java |
 | `anaconda_enabled` | Boolean | `true` | Settings.java |
+| `api_key_auth_cache_ttl_seconds` | Integer | `0` | Settings.java |
 | `app_kill_grace_period_seconds` | Long | `2` | Settings.java |
 | `application_certificate_validity_period` | String | `3d` | CAConf.java |
 | `arrow_flight_read_timeout_as_ms` | Long | `180000` | Settings.java |
@@ -40933,6 +41026,14 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `csi_driver_enabled` | Boolean | `false` | Settings.java |
 | `csi_driver_name` | String | `hopsfs.csi.logicalclocks.com` | Settings.java |
 | `csi_sidecar_image` | String | `docker.hops.works/hopsworks/hopsfs-csi:0.1.0-SNAPSHOT` | Settings.java |
+| `data_source_audit_retention_days` | Integer | `7` | Settings.java |
+| `data_source_sync_job_cores` | Double | `0.5` | Settings.java |
+| `data_source_sync_job_memory` | Integer | `1024` | Settings.java |
+| `data_source_sync_lifecycle_stale_minutes` | Integer | `10` | Settings.java |
+| `data_source_sync_max_run_minutes` | Integer | `0` | Settings.java |
+| `data_source_sync_min_interval_minutes` | Integer | `5` | Settings.java |
+| `data_source_sync_stop_wait_seconds` | Integer | `120` | Settings.java |
+| `data_source_sync_transfers` | Integer | `4` | Settings.java |
 | `databricks_account_host_allowlist` | String | `accounts.cloud.databricks.com,accounts.azuredatabricks.net,accounts.gcp.databricks.com` | Settings.java |
 | `databricks_oauth_allow_private_ranges` | Boolean | `false` | Settings.java |
 | `default_feature_store_project_id` | Integer | `-1` | Settings.java |
@@ -40970,7 +41071,6 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `docker_job_mount_allowed` | Boolean | `true` | Settings.java |
 | `docker_job_mounts_list` | String | *(empty string)* | Settings.java |
 | `docker_job_uid_strict` | Boolean | `true` | Settings.java |
-| `docker_mounts` | String | `/srv/hops/hadoop/etc/hadoop,/srv/hops/spark,/srv/hops/flink` | Settings.java |
 | `docker_namespace` | String | *(empty string)* | Settings.java |
 | `docker_operations_allow_hermetic_custom_commands` | Boolean | `false` | Settings.java |
 | `docker_operations_backoff_limit` | Integer | `0` | Settings.java |
@@ -41038,25 +41138,29 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `enable_bring_your_own_kafka` | Boolean | `false` | Settings.java |
 | `enable_crm_storage_connectors` | Boolean | `true` | Settings.java |
 | `enable_custom_branding` | Boolean | `false` | Settings.java |
+| `enable_custom_project_roles` | Boolean | `false` | Settings.java |
 | `enable_data_science_profile` | Boolean | `false` | Settings.java |
 | `enable_elasticsearch_storage_connectors` | Boolean | `false` | Settings.java |
 | `enable_feature_monitoring` | Boolean | `false` | Settings.java |
 | `enable_gcs_storage_connectors` | Boolean | `false` | Settings.java |
 | `enable_glue_storage_connectors` | Boolean | `true` | Settings.java |
 | `enable_gmail_storage_connectors` | Boolean | `true` | Settings.java |
-| `enable_outlook_storage_connectors` | Boolean | `true` | Settings.java |
 | `enable_google_sheets_storage_connectors` | Boolean | `true` | Settings.java |
 | `enable_hopsfsmount_page_cache_in_jobs` | Boolean | `true` | Settings.java |
 | `enable_hopsfsmount_page_cache_in_jupyter` | Boolean | `false` | Settings.java |
+| `enable_hopsworks_storage_connectors` | Boolean | `true` | Settings.java |
 | `enable_kafka_storage_connectors` | Boolean | `true` | Settings.java |
 | `enable_mongodb_storage_connectors` | Boolean | `true` | Settings.java |
 | `enable_opencost` | Boolean | `false` | Settings.java |
 | `enable_opensearch_storage_connectors` | Boolean | `false` | Settings.java |
+| `enable_outlook_storage_connectors` | Boolean | `true` | Settings.java |
 | `enable_project_observer_role` | Boolean | `false` | Settings.java |
+| `enable_public_apps` | Boolean | `false` | Settings.java |
 | `enable_read_only_git_repositories` | Boolean | `false` | Settings.java |
 | `enable_redshift_storage_connectors` | Boolean | `true` | Settings.java |
 | `enable_rest_storage_connectors` | Boolean | `true` | Settings.java |
 | `enable_sap_hana_storage_connectors` | Boolean | `true` | Settings.java |
+| `enable_sharepoint_storage_connectors` | Boolean | `true` | Settings.java |
 | `enable_snowflake_storage_connectors` | Boolean | `true` | Settings.java |
 | `enable_sql_storage_connectors` | Boolean | `true` | Settings.java |
 | `enable_terminal` | Boolean | `false` | Settings.java |
@@ -41088,7 +41192,6 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `file_preview_txt_size` | Integer | `100` | Settings.java |
 | `first_time_login` | String | `0` | Settings.java |
 | `flink_dir` | String | `/srv/hops/flink` | Settings.java |
-| `flink_version` | String | *(empty string)* | Settings.java |
 | `fs_java_job_util` | String | `hdfs:///user/spark/hsfs-utils-2.1.0-SNAPSHOT.jar` | Settings.java |
 | `fs_py_job_util` | String | `hdfs:///user/spark/hsfs_util-2.1.0-SNAPSHOT.py` | Settings.java |
 | `fs_storage_connector_session_duration` | Integer | `3600` | Settings.java |
@@ -41214,6 +41317,7 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `kube_serving_apikey_reaper_interval_minutes` | Integer | `15` | Settings.java |
 | `kube_serving_max_num_instances` | Integer | `-1` | Settings.java |
 | `kube_serving_min_num_instances` | Integer | `-1` | Settings.java |
+| `kube_serving_triton_versions` | String | *(empty string)* | Settings.java |
 | `kube_serving_vllm_omni_versions` | String | *(empty string)* | Settings.java |
 | `kube_serving_vllm_versions` | String | *(empty string)* | Settings.java |
 | `kube_skip_namespace_creation` | Boolean | `false` | Settings.java |
@@ -41224,11 +41328,16 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `kube_user_workload_tolerations` | String | *(empty string)* | Settings.java |
 | `kubernetes_installed` | String | `false` *(duplicate key, also declared in Settings.java; values match)* | CAConf.java |
 | `kubernetes_installed` | Boolean | `false` *(duplicate key, also declared in CAConf.java; values match)* | Settings.java |
+| `kueue_history_retention_days` | Integer | `90` | Settings.java |
 | `kueue_installed` | Boolean | `false` | Settings.java |
 | `kueue_project_default_cluster_queue` | String | *(empty string)* | Settings.java |
 | `kueue_project_default_local_queue` | String | *(empty string)* | Settings.java |
+| `kueue_queue_model` | String | `shared` | Settings.java |
+| `kueue_reconcile_interval_s` | Integer | `300` | Settings.java |
+| `kueue_rollup_retention_days` | Integer | `100` | Settings.java |
 | `kueue_system_jobs_cluster_queue` | String | *(empty string)* | Settings.java |
 | `kueue_system_jobs_local_queue` | String | *(empty string)* | Settings.java |
+| `label_priority_write` | Boolean | `true` | Settings.java |
 | `ldap_account_status` | Integer | `1` | Settings.java |
 | `ldap_attr_binary` | String | `java.naming.ldap.attributes.binary` | Settings.java |
 | `ldap_auth` | Boolean | `false` | Settings.java |
@@ -41255,6 +41364,13 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `lifecycle_webhook_cluster_id` | String | *(empty string)* | Settings.java |
 | `lifecycle_webhook_secret` | String | *(empty string)* | Settings.java |
 | `lifecycle_webhook_url` | String | *(empty string)* | Settings.java |
+| `llm_gateway_deployment_request_limit` | String | *(empty string)* | Settings.java |
+| `llm_gateway_deployment_token_limit` | String | *(empty string)* | Settings.java |
+| `llm_gateway_project_request_limit` | String | *(empty string)* | Settings.java |
+| `llm_gateway_project_token_limit` | String | *(empty string)* | Settings.java |
+| `llm_gateway_user_request_limit` | String | *(empty string)* | Settings.java |
+| `llm_gateway_user_token_limit` | String | *(empty string)* | Settings.java |
+| `loadbalancer_external_domain_semantic_gateway` | String | *(empty string)* | Settings.java |
 | `localhost` | Boolean | `false` | Settings.java |
 | `log_history_limit` | Integer | `30` | Settings.java |
 | `login_page_overwrite` | String | *(empty string)* | Settings.java |
@@ -41274,7 +41390,6 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `max_num_proj_per_user` | Integer | `5` | Settings.java |
 | `max_ongoing_opensearch_doc_write` | Integer | `100` | Settings.java |
 | `max_project_cloned_environments` | Integer | `100` | Settings.java |
-| `max_status_poll_retry` | Integer | `5` | Settings.java |
 | `max_upload_request_bytes` | Long | `67108864` | Settings.java |
 | `mount_hopsfs_in_python_deployments` | Boolean | `true` | Settings.java |
 | `mount_hopsfs_in_python_job` | Boolean | `true` | Settings.java |
@@ -41299,16 +41414,20 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `oauth_redirect_uri` | String | `hopsworks/callback` | Settings.java |
 | `ongoing_backup` | Boolean | `false` | Settings.java |
 | `online_ingestion_max_per_featuregroup` | Integer | `1000` | Settings.java |
+| `onlinefs_deployment_name` | String | `onlinefs-deployment` | Settings.java |
 | `onlinefs_service_thread_number` | Integer | `10` | Settings.java |
+| `onlinefs_service_user_email` | String | `onlinefs@hopsworks.ai` | Settings.java |
 | `opencost_api_url` | String | `https://opencost.opencost.svc.cluster.local:9443` | Settings.java |
 | `opencost_currency` | String | `USD` | Settings.java |
 | `opencost_history_retention_days` | Integer | `400` | Settings.java |
 | `opensearch_default_embedding_index` | String | *(empty string)* | Settings.java |
+| `opensearch_default_max_index_size_mb` | Integer | `-1` | Settings.java |
+| `opensearch_default_max_num_embedding_indices` | Integer | `-1` | Settings.java |
+| `opensearch_default_max_vector_index_size_mb` | Integer | `-1` | Settings.java |
 | `opensearch_index_mapping_limit` | Integer | `1000` | Settings.java |
 | `opensearch_num_default_embedding_index` | Integer | `1` | Settings.java |
 | `openshift` | Boolean | `false` | Settings.java |
 | `payara_admin_password_value` | String | `admin_password` | KubeSettings.java |
-| `payment_type` | String | `NOLIMIT` | Settings.java |
 | `pki_ca_configuration` | String | *(empty string)* | CAConf.java |
 | `platform_intelligence_llm_api_key` | String | *(empty string)* | Settings.java |
 | `platform_intelligence_llm_base_url` | String | *(empty string)* | Settings.java |
@@ -41343,6 +41462,7 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `pythonapp_idle_cooldown_seconds` | Integer | `21600` | Settings.java |
 | `pythonapp_memory` | Integer | `2048` | Settings.java |
 | `pythonapp_proxy_token_ttl_ms` | Long | `900000` | Settings.java |
+| `pythonapp_unready_timeout_seconds` | Integer | `600` | Settings.java |
 | `quotas_featuregroups_online_disabled` | Long | `-1` | Settings.java |
 | `quotas_featuregroups_online_enabled` | Long | `-1` | Settings.java |
 | `quotas_max_parallel_executions` | Long | `-1` | Settings.java |
@@ -41373,7 +41493,20 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `replicated_kubernetes_ops_retention` | String | `P15D` | Settings.java |
 | `requests_verify` | Boolean | `false` | Settings.java |
 | `reserved_project_names` | String | `hopsworks,information_schema,airflow,glassfish_timers,grafana,hops,metastore,mysql,ndbinfo,performance_schema,sqoop,sys,base,python37,python38,python39,python310,filebeat,git,onlinefs,sklearnserver,rondb_replication,default,kube-system,kube-public,kube-node-lease,kube_system,kube_public,kube_node_lease,trino` | Settings.java |
-| `resource_dirs` | String | `".sparkStaging;spark-warehouse;.flinkStaging;.flinkCheckpoints;apps;jobs;" + DLT_WAREHOUSE_DIR.getDefaultValue() + ";" + RAY_WAREHOUSE_DIR.getDefaultValue()` *(computed expression, not a literal)* | Settings.java |
+| `resource_dirs` | String | `".sparkStaging;spark-warehouse;apps;jobs;" + DLT_WAREHOUSE_DIR.getDefaultValue() + ";" + RAY_WAREHOUSE_DIR.getDefaultValue()` *(computed expression, not a literal)* | Settings.java |
+| `rest_api_rate_limit_enabled` | Boolean | `false` | Settings.java |
+| `rest_api_rate_limit_exempt_roles` | String | `AGENT` | Settings.java |
+| `rest_api_rate_limit_fast_probe_ms` | Integer | `50` | Settings.java |
+| `rest_api_rate_limit_max_burst` | Integer | `100` | Settings.java |
+| `rest_api_rate_limit_probe_interval_seconds` | Integer | `5` | Settings.java |
+| `rest_api_rate_limit_probes_to_shared` | Integer | `6` | Settings.java |
+| `rest_api_rate_limit_slow_sync_ms` | Integer | `100` | Settings.java |
+| `rest_api_rate_limit_stale_seconds` | Integer | `3` | Settings.java |
+| `rest_api_rate_limit_steady_state` | Integer | `20` | Settings.java |
+| `rest_api_rate_limit_sync_deadline_ms` | Integer | `250` | Settings.java |
+| `rest_api_rate_limit_user_cache_minutes` | Integer | `10` | Settings.java |
+| `rest_api_rate_limit_user_cache_size` | Integer | `10000` | Settings.java |
+| `rondb_default_max_online_tables` | Integer | `-1` | Settings.java |
 | `rondb_mgmt_connection_timeout` | Integer | `5000` | Settings.java |
 | `rondb_mgmt_max_response_lines` | Integer | `10000` | Settings.java |
 | `rondb_mgmt_read_timeout` | Integer | `10000` | Settings.java |
@@ -41390,6 +41523,15 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `run_ai_reconcile_interval_s` | Integer | `600` | Settings.java |
 | `run_ai_url` | String | `http://runai-backend-traefik.runai-backend.svc.cluster.local:8080` | Settings.java |
 | `saas_entry_point_url` | String | *(empty string)* | Settings.java |
+| `semantic_gateway_cluster_flight_port` | Integer | `18446` | Settings.java |
+| `semantic_gateway_flight_port` | Integer | `18446` | Settings.java |
+| `semantic_layer_builds_retained` | Integer | `20` | Settings.java |
+| `semantic_layer_enabled` | Boolean | `false` | Settings.java |
+| `semantic_layer_gateway_cluster_url` | String | `https://semantic-gateway.hopsworks.svc.cluster.local:18443` | Settings.java |
+| `semantic_layer_gateway_internal_url` | String | *(empty string)* | Settings.java |
+| `semantic_layer_staleness_check_seconds` | Integer | `30` | Settings.java |
+| `semantic_query_cleaner_batch_size` | Integer | `1000` | Settings.java |
+| `semantic_query_strip_details_after_days` | Integer | `7` | Settings.java |
 | `service_discovery_domain` | String | `consul` *(duplicate key, also declared in Settings.java; values match)* | CAConf.java |
 | `service_discovery_domain` | String | `consul` *(duplicate key, also declared in CAConf.java; values match)* | Settings.java |
 | `service_jwt_exp_leeway_sec` | Integer | `43200` | Settings.java |
@@ -41416,9 +41558,13 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `serving_max_route_connections` | Integer | `10` | Settings.java |
 | `serving_monitor_int` | String | `30s` | Settings.java |
 | `serving_redeploy_not_found_after_seconds` | Integer | `120` | Settings.java |
+| `serving_sharing_enabled` | Boolean | `true` | Settings.java |
 | `serving_state_manager_batch_size` | Integer | `1000` | Settings.java |
 | `serving_state_manager_enabled` | Boolean | `true` | Settings.java |
 | `serving_state_manager_interval_ms` | Integer | `600000` | Settings.java |
+| `serving_tracing_max_traces_per_minute` | Integer | `60` | Settings.java |
+| `serving_tracing_online_ttl_hours` | Integer | `36` | Settings.java |
+| `serving_tracing_pause_free_percent` | Integer | `20` | Settings.java |
 | `spark_configmap_name` | String | `spark` | Settings.java |
 | `spark_dir` | String | `/srv/hops/spark` | Settings.java |
 | `spark_executor_min_memory` | Integer | `1024` | Settings.java |
@@ -41431,7 +41577,6 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `spark_launcher_sa_annotations` | String | *(empty string)* | Settings.java |
 | `spark_pod_kill_grace_period_seconds` | Integer | `1200` | Settings.java |
 | `spark_remove_job_when_completed` | Boolean | `true` | Settings.java |
-| `spark_resource_manager` | String | `kubernetes` | Settings.java |
 | `spark_ui_logs_offset` | Integer | `512000` | Settings.java |
 | `spark_user` | String | `spark` | Settings.java |
 | `spark_version` | String | *(empty string)* | Settings.java |
@@ -41439,7 +41584,6 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `staging_dir` | String | `/srv/hops/domains/domain1/staging` | Settings.java |
 | `statistics_cleaner_batch_size` | Integer | `1000` | Settings.java |
 | `statistics_cleaner_interval_ms` | Integer | `900000` | Settings.java |
-| `streamlit_sharing` | Boolean | `false` | Settings.java |
 | `sudoers_dir` | String | `/srv/hops/sbin` *(duplicate key, also declared in Settings.java; values match)* | CAConf.java |
 | `sudoers_dir` | String | `/srv/hops/sbin` *(duplicate key, also declared in CAConf.java; values match)* | Settings.java |
 | `superset_admin_roles` | String | `Admin` | Settings.java |
@@ -41451,6 +41595,7 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `superset_proxy_read_timeout_ms` | Integer | `180000` | Settings.java |
 | `superset_proxy_token_ttl_ms` | Long | `900000` | Settings.java |
 | `superset_secret` | String | `superset-admin-credentials` | KubeSettings.java |
+| `superset_semantic_enabled` | Boolean | `true` | Settings.java |
 | `superset_user_roles` | String | `Gamma,sql_lab` | Settings.java |
 | `tag_history_archive_max_events` | Integer | `20000` | Settings.java |
 | `tag_history_cleaner_batch_size` | Integer | `1000` | Settings.java |
@@ -41458,6 +41603,7 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `tag_history_retention_days` | Integer | `0` | Settings.java |
 | `teleport_cleaner_interval_ms` | Long | `86400000` | Settings.java |
 | `teleport_ttl_days` | Integer | `7` | Settings.java |
+| `tensorflow_inference_enabled` | Boolean | `true` | Settings.java |
 | `tensorflow_version` | String | *(empty string)* | Settings.java |
 | `terminal_gpu_image` | String | `terminal-gpu` | Settings.java |
 | `terminal_image` | String | `terminal-server` | Settings.java |
@@ -41470,11 +41616,12 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `terminal_spark_image` | String | `terminal-spark` | Settings.java |
 | `trino_access_control_base_configmap` | String | `hopsworks-trino-access-control-base` | KubeSettings.java |
 | `trino_catalog_approval_required` | Boolean | `false` | Settings.java |
+| `trino_catalog_management` | String | `static` | Settings.java |
 | `trino_catalog_max_bytes` | Integer | `16384` | Settings.java |
 | `trino_catalog_max_per_project` | Integer | `10` | Settings.java |
 | `trino_catalog_reconcile_enabled` | Boolean | `false` | Settings.java |
 | `trino_catalogs_configmap` | String | `hopsworks-trino-catalogs` | KubeSettings.java |
-| `trino_connectors` | String | `ai,bigquery,blackhole,cassandra,clickhouse,datasketches,delta_lake,druid,duckdb,elasticsearch,exasol,faker,gsheets,hive,hudi,iceberg,ignite,jmx,kafka,lakehouse,loki,mariadb,memory,mongodb,mysql,opensearch,oracle,pinot,postgresql,prometheus,redis,redshift,singlestore,snowflake,sqlserver,tpcds,tpch,trino_thrift` | Settings.java |
+| `trino_connectors` | String | `ai,bigquery,blackhole,cassandra,clickhouse,datasketches,delta_lake,druid,duckdb,elasticsearch,exasol,faker,gsheets,hive,hudi,iceberg,ignite,jmx,kafka,lakehouse,loki,mariadb,memory,mongodb,mysql,opensearch,oracle,pinot,postgresql,prometheus,redis,redshift,singlestore,snowflake,sqlserver,teradata,tpcds,tpch,trino_thrift` | Settings.java |
 | `trino_coordinator_deployment` | String | `hopsworks-trino-coordinator` | KubeSettings.java |
 | `trino_credentials_secret` | String | `trino-admin-credentials` | KubeSettings.java |
 | `trino_default_catalog` | String | `delta` | Settings.java |
@@ -41489,6 +41636,7 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `trino_files_path` | String | `/apps/trino` | Settings.java |
 | `trino_image_tag` | String | *(empty string)* | Settings.java |
 | `trino_max_catalogs` | Integer | `250` | Settings.java |
+| `trino_max_catalogs_ceiling` | Integer | `250` | Settings.java |
 | `trino_mountable_secrets_root` | String | `/opt/hopsworks/mounts` | KubeSettings.java |
 | `trino_reconcile_enabled` | Boolean | `true` | Settings.java |
 | `trino_reconcile_interval_ms` | Long | `300000` | Settings.java |
@@ -41512,7 +41660,6 @@ See [Cluster Configuration][cluster-configuration] for how to view and change th
 | `velero_namespace` | String | *(empty string)* | Settings.java |
 | `whitelist_users` | String | `agent@hops.io` | Settings.java |
 | `yarn_app_uid` | Long | `1235` | Settings.java |
-| `yarn_default_quota` | Integer | `60000` | Settings.java |
 | `zookeeper_version` | String | *(empty string)* | Settings.java |
 
 <!-- END GENERATED -->
@@ -42754,6 +42901,162 @@ Project member can now create connectors using _temporary credentials_ to assume
 More details about using temporary credentials can be found in the [Temporary Credentials section](../../user_guides/fs/data_source/creation/s3.md#temporary-credentials) of the S3 datasource creation guide.
 
 Project member can see the list of role they can assume by going the _Project Settings_ -> [Assuming IAM Roles](../../user_guides/projects/iam_role/iam_role_chaining.md) page.
+
+================================================================================
+# Private CA Trust
+Source: https://docs.hopsworks.ai/latest/setup_installation/admin/private_ca/
+
+# Private CA Trust { #private-ca-trust }
+
+## Introduction
+
+Hopsworks connects to external services from the Hopsworks server and from the jobs, notebooks and services it runs.
+When a service presents a certificate issued by a private certificate authority (CA), every component that connects to it must trust that CA.
+An [S3 data source on an S3-compatible store][data-source-s3-compatible] served over TLS is the common case.
+
+The Hopsworks Helm chart ships a [Kyverno](https://kyverno.io) policy for this.
+It mounts a CA bundle, the ConfigMap `ca-pemstore`, over `/etc/ssl/certs` in the pods of the Hopsworks namespace and of the project namespaces, and copies the ConfigMap into project namespaces as they are created.
+The bundle replaces the directory, so it holds the public root CAs as well as the private one.
+
+## Prerequisites { #private-ca-prerequisites }
+
+- Kyverno installed in the cluster, engine only.
+  The chart is tested with the Kyverno Helm chart 3.3.3 (Kyverno 1.13.1).
+- The certificates of the private CA in PEM format, one file each: the root CA, and every intermediate CA between it and the service's certificate, such as an issuing CA.
+- `kubectl`, `docker` and `keytool` (from a Java runtime) on the machine that builds the bundle.
+
+## Build the bundle { #private-ca-bundle }
+
+Add the root CA and every intermediate CA to the bundle.
+The clients differ in what they accept: boto3 does not trust a service through an intermediate CA alone, and no client fetches an intermediate CA that the service does not send.
+`openssl s_client -connect <host>:<port> -showcerts` lists the certificates a service sends.
+
+The bundle has these keys:
+
+- `ca-certificates.crt`: the public root CAs and the private CA certificates, read by Python, DuckDB and other clients that use the system bundle.
+- `java-cacerts`: the Java truststore with the private CA certificates added, mounted at `/etc/ssl/certs/java/cacerts`, where the Java runtime of the Hopsworks Spark images looks for it.
+- `private-ca.crt`: the root CA alone.
+- `private-ca-<n>.crt`: each intermediate CA alone, one key per certificate.
+  The Hopsworks server imports every `.crt` and `.pem` file of the bundle into its own truststore when it starts, the first certificate of each file only.
+
+Start from the files of an image the workloads use, so the public roots match theirs, and add the private CA certificates:
+
+```bash
+IMAGE=<a Hopsworks Spark image>
+ROOT=root-ca.crt
+INTERMEDIATES=(issuing-ca.crt)
+mkdir bundle
+
+cid=$(docker create "$IMAGE")
+docker cp -L "$cid:/etc/ssl/certs/ca-certificates.crt" bundle/ca-certificates.crt
+docker cp -L "$cid:/etc/ssl/certs/java/cacerts" bundle/java-cacerts
+docker rm "$cid"
+
+files=(--from-file=private-ca.crt="$ROOT")
+n=0
+for cert in "$ROOT" "${INTERMEDIATES[@]}"; do
+  cat "$cert" >> bundle/ca-certificates.crt
+  keytool -importcert -noprompt -keystore bundle/java-cacerts -storepass changeit -alias "private-ca-$n" -file "$cert"
+  [ "$cert" = "$ROOT" ] || files+=(--from-file="private-ca-$n.crt=$cert")
+  n=$((n + 1))
+done
+
+kubectl -n hopsworks create configmap ca-pemstore \
+  --from-file=ca-certificates.crt=bundle/ca-certificates.crt \
+  --from-file=java-cacerts=bundle/java-cacerts \
+  "${files[@]}"
+```
+
+Create the ConfigMap with `kubectl create`, or with `kubectl apply --server-side`.
+A client-side `kubectl apply` stores the whole bundle in an annotation, which exceeds the 256 KiB annotation limit.
+
+## Configure the chart { #private-ca-values }
+
+```yaml
+global:
+  _hopsworks:
+    kyverno:
+      enabled: true
+      policies:
+        addCertificatesVolume:
+          enabled: true
+          preconditions:
+            enabled: false
+hw-kyverno:
+  policies:
+    addCertificatesVolume:
+      items:
+        - {key: ca-certificates.crt, path: ca-certificates.crt}
+        - {key: java-cacerts, path: java/cacerts}
+        - {key: private-ca.crt, path: private-ca.crt}
+      envs:
+        - {name: SSL_CERT_FILE, value: /etc/ssl/certs/ca-certificates.crt}
+        - {name: REQUESTS_CA_BUNDLE, value: /etc/ssl/certs/ca-certificates.crt}
+        - {name: AWS_CA_BUNDLE, value: /etc/ssl/certs/ca-certificates.crt}
+```
+
+- `preconditions.enabled: false` mounts the bundle into every pod of the Hopsworks namespace and of the project namespaces, which covers Spark, Python and notebook workloads.
+  With the preconditions on, the policy only reaches the pods that opt in: the admin server, the Arrow Flight server, HopsFS, and the docker and git jobs listed in `hw-kyverno.policies.addCertificatesVolume.labels`.
+- `items` places the Java truststore in the `java` subdirectory, which a ConfigMap key cannot name.
+  It also lists the other keys to mount, and a key without an entry is not mounted, so add one per intermediate CA key, such as `- {key: private-ca-1.crt, path: private-ca-1.crt}`.
+  List only keys the ConfigMap has: a pod waits in `ContainerCreating` while an entry names a missing key.
+- `envs` points the clients that do not read `/etc/ssl/certs` at the bundle: boto3 reads `AWS_CA_BUNDLE`, and the `requests` library reads `REQUESTS_CA_BUNDLE`.
+- Leave `hw-kyverno.policies.addCertificatesVolume.labels` unset: a value replaces the default list rather than extending it.
+
+All values are listed in [Kyverno values][helm-values-hw-kyverno].
+
+## Apply { #private-ca-apply }
+
+1. Create `ca-pemstore` in the Hopsworks namespace before enabling the policy.
+   A pod the policy mutates waits in `ContainerCreating` until the ConfigMap exists in its namespace.
+2. Upgrade Hopsworks with the values above.
+3. Copy the bundle into the project namespaces that existed before the policy.
+   The policy copies it when a namespace is created or updated, so annotate the existing ones:
+
+    ```bash
+    for ns in $(kubectl get ns -l hopsworks.ai/project -o jsonpath='{.items[*].metadata.name}'); do
+      kubectl annotate ns "$ns" hopsworks.ai/ca-resync="$(date +%s)" --overwrite
+    done
+    kubectl get configmap ca-pemstore -A
+    ```
+
+4. Restart the Hopsworks server instances, so that they copy the truststore that the admin server imported the CA into when the upgrade restarted it.
+   Scale them to 0 and back rather than restarting them one by one, which can leave an instance with stale configuration:
+
+    ```bash
+    replicas=$(kubectl -n hopsworks get deployment hopsworks-instance -o jsonpath='{.spec.replicas}')
+    kubectl -n hopsworks scale deployment hopsworks-instance --replicas=0
+    kubectl -n hopsworks wait pod -l app=hopsworks-instance --for=delete --timeout=10m
+    kubectl -n hopsworks scale deployment hopsworks-instance --replicas="$replicas"
+    kubectl -n hopsworks rollout status deployment hopsworks-instance
+    ```
+
+5. Restart the Arrow Flight server, `kubectl -n hopsworks rollout restart deployment/arrowflight-deployment`, and any running notebook servers.
+   Other pods get the bundle when they are next created.
+
+## Verify { #private-ca-verify }
+
+- In a pod of a project namespace, `/etc/ssl/certs/ca-certificates.crt` and `/etc/ssl/certs/java/cacerts` exist.
+- `keytool -list -keystore /etc/ssl/certs/java/cacerts -storepass changeit -alias private-ca-0` finds the root CA.
+- An S3 data source on the store, created with its `https://` endpoint, lists the bucket's tables in the data source view.
+
+## Rotate the CA { #private-ca-rotation }
+
+1. Replace `ca-pemstore` in the Hopsworks namespace.
+   The policy keeps the copies in the project namespaces in step with it.
+2. If the new chain has a different number of intermediate CAs, its `private-ca-<n>.crt` keys change.
+   Set `items` to list exactly the keys of the new ConfigMap, and upgrade Hopsworks with it.
+   A pod created while an entry names a key the ConfigMap lacks waits in `ContainerCreating` until the two match.
+3. Restart the admin server, and wait for it, so that it imports the new certificates before the instances copy its truststore:
+
+    ```bash
+    kubectl -n hopsworks rollout restart deployment/hopsworks-admin
+    kubectl -n hopsworks rollout status deployment/hopsworks-admin
+    ```
+
+4. Scale the instances to 0 and back, and restart the Arrow Flight server and any running notebook servers, as in steps 4 and 5 of [Apply][private-ca-apply].
+
+Other workloads read the bundle when they start, so the change reaches the ones started afterwards.
 
 ================================================================================
 # Configure Project Mapping
@@ -45555,6 +45858,13 @@ consul {
 
 This is the form for the default setup, in which the chart configures the cluster DNS through the `coredns` ConfigMap and sets `CONSUL_SERVER` on the CoreDNS Deployment.
 
+### A HopsFS schema migration is recorded as failed { #upgrade-migration-rondb-restart }
+
+After an upgrade from 5.2.4 or earlier to 5.2.5, the new `namenode` pod can stay in `Init:CrashLoopBackOff`, with its `initialize-flyway` container logging ``ERROR: Schema `hops` contains a failed migration to version 3.4.3.4 !`` on every retry.
+The migration started before the upgrade restarted RonDB, and the restart interrupted it.
+This is fixed in 5.2.6, as described under [Schema migrations wait for the RonDB restart][upgrade-migrations-wait-rondb].
+To recover a cluster in that state, contact Hopsworks support.
+
 ## 5.2.x to 5.3.x { #upgrade-52-to-53 }
 
 OpenSearch stays on 3.8.0.
@@ -46022,13 +46332,13 @@ With the topic ID, OnlineFS reads a topic that was deleted and created again und
   A pod that starts later copies only project tables not listed yet.
 - **The project tables stay until every OnlineFS pod runs 5.3.**
   An OnlineFS pod of 5.2 reads its project's table each time Kafka gives it partitions, as during the rollout.
-  The `onlinefs-drop-legacy-offsets-<hash>-r<revision>` Job waits for the rollout of the OnlineFS Deployment to finish, then drops the listed project tables.
+  The `onlinefs-drop-legacy-offsets-<hash>-r<revision>` Job waits for the rollouts of the RonDB StatefulSets and of the OnlineFS Deployment to finish, then drops the listed project tables.
   On a cluster with `global._hopsworks.full_platform: true` it holds the Flyway lease while it drops them, as the schema migrations do.
 - **The init container and the Job connect to the DDL SQL node of the release as `hopsworksroot`**, as the schema migrations do: the `ddl-mysqld` Service of the release, or, when RonDB is managed externally on a release with `global._hopsworks.full_platform: true`, the consul name in `onlinefs.dependencies.mysql.ddlConsulServiceName` (`mysqlddl`).
   A satellite cluster (`global._hopsworks.full_platform: false`) always connects to the Service, also with an external RonDB.
   A cluster that disables the DDL SQL node (`rondb.rondb.meta.ddlMySQLd.enabled: false`) sets `onlinefs.dependencies.mysql.serviceName: mysqld`, and also `onlinefs.dependencies.mysql.ddlConsulServiceName: mysql` when it is not a satellite and RonDB is managed externally.
   `onlinefs.dependencies.mysql.url` overrides both.
-- **With `onlinefs.rbac.useExistingRole`**, the role needs `get`, `list` and `watch` on `deployments`, and on a cluster with `global._hopsworks.full_platform: true` the lease rules of the chart's `onlinefs-role`, for the Job.
+- **With `onlinefs.rbac.useExistingRole`**, the role needs `get`, `list` and `watch` on `deployments` and `statefulsets`, `get` and `watch` on `statefulsets/status`, and on a cluster with `global._hopsworks.full_platform: true` the lease rules of the chart's `onlinefs-role`, for the Job.
 - **A step that fails keeps the pod from starting.**
   It reads every project table before it writes, so a step that fails while it copies leaves every project table as it is, and the next start copies them again.
   The pod stays in `Init:Error` or `Init:CrashLoopBackOff`, and the log names the database:
@@ -46125,6 +46435,17 @@ Before enabling, as listed under [How to enable it][llm-gateway-enable]:
 Enable with one `helm upgrade`: no predictive pod, Knative pod or `kserve-ingress-gateway` pod restarts, and the AI Gateway's Envoy pods roll once when the first route attaches.
 Data Owners can then turn the LLM Gateway off per project and per deployment, both on by default.
 Disable with one upgrade with `aiGateway.enabled: false`, as described under [Turn it off][llm-gateway-disable], which also lists what a `helm rollback` leaves behind and how to remove it.
+
+### vLLM image versions { #upgrade-vllm-image-versions }
+
+Because of a security fix, new vLLM deployments default to `vllm/vllm-openai:v0.34.0`, which is the only vLLM image version the chart advertises.
+Existing vLLM deployments keep the image version they were created with through the upgrade and later restarts.
+Move each of them to v0.34.0 by editing the deployment and selecting v0.34.0 as its image version.
+Check its vLLM configuration file first against the [vLLM v0.34.0 upgrade notes](https://github.com/vllm-project/vllm/releases/tag/v0.34.0): v0.34.0 no longer starts with `VLLM_USE_V2_MODEL_RUNNER=0`, and an unset `gpu_memory_utilization` now defaults to `1.0`.
+A cluster that pulls from a mirror needs `vllm/vllm-openai:v0.34.0` mirrored before the upgrade, or `vllm/vllm-openai-cpu:v0.34.0` when it runs vLLM on CPU, and keeps the versions its existing deployments use, see [Image tags][vllm-image-tags].
+
+The chart's vLLM-Omni version stays `v0.32.0`, and existing vLLM-Omni deployments keep the version they were created with.
+vLLM-Omni can now be disabled per cluster, see [Disable vLLM-Omni][vllm-disable-omni].
 
 ### Security response headers { #upgrade-security-headers }
 
@@ -46256,6 +46577,41 @@ Istio 1.30 supports Kubernetes 1.32 to 1.36, and Istio supports the 1.30 release
   Do not run `helm upgrade`, or an ArgoCD sync, with a release older than 5.2.5 afterwards: its hook installs Istio 1.29 over 1.30, a downgrade Istio does not support.
   To go back entirely, restore the backup on a new cluster, as described in [New Cluster Restore][new-cluster-restore].
   An in-place restore does not apply here, since it runs `helm upgrade` with the release of the backup, whose Istio install hook installs Istio 1.29 over 1.30.
+
+## Changes from 5.2.6 { #upgrade-changes-from-526 }
+
+These changes ship in 5.2.6 and 5.3.0.
+They apply to an upgrade from 5.1.x to 5.2.6 or later, from an earlier 5.2 release to 5.2.6 or later, and from 5.2.5 or earlier to 5.3.
+5.1.4 and 5.0.16 carry the same changes, so they also apply to an upgrade to 5.1.4 or to 5.0.16.
+
+### Schema migrations wait for the RonDB restart { #upgrade-migrations-wait-rondb }
+
+The pods that run schema migrations, of the HopsFS namenode, the Hopsworks CA and the Hive metastore, wait until the upgrade has restarted RonDB before they migrate.
+
+- **Availability.**
+  The Hopsworks CA is unavailable from the moment the upgrade replaces its pod until the RonDB restart has finished, and so is the Hopsworks admin server when the release changes the Hopsworks schema.
+- **Time.**
+  On a cluster whose RonDB restart takes longer than an hour, raise `global._hopsworks.rondbRolloutProgressDeadlineSeconds` (3600 seconds) together with `helm upgrade --timeout`.
+  Past that deadline, Helm 4 and ArgoCD report the upgrade as failed although the rollout continues.
+- **ArgoCD.**
+  Sync the RonDB StatefulSets in the same sync and sync wave as the Deployments, because those pods wait until the sync has updated the StatefulSets.
+- **If the upgrade fails.**
+  Those pods keep waiting.
+  Fix the cause and run the upgrade again: they continue without being deleted.
+
+### RonDB disk-column volume with ArgoCD { #upgrade-rondb-disk-column-volume }
+
+A cluster that keeps RonDB's on-disk columns on a volume of their own (`rondb.rondb.resources.requests.storage.classes.diskColumns`) and is upgraded with ArgoCD states the size of that volume before the upgrade.
+The chart now sizes that volume larger for a new cluster, and ArgoCD cannot read the size of an existing one, so without the value the sync fails on the `node-group` StatefulSets, whose volume claims Kubernetes does not let change.
+Read the size of the existing volume claim:
+
+```sh
+kubectl get statefulset node-group-0 -n hopsworks \
+  -o jsonpath='{.spec.volumeClaimTemplates[?(@.metadata.name=="rondb-ndbmtd-dc")].spec.resources.requests.storage}'
+```
+
+Set `rondb.rondb.resources.requests.storage.diskColumnVolumeGiB` to that number of GiB, and keep it set in later upgrades.
+An upgrade with Helm keeps the existing size by itself.
 
 ================================================================================
 # Upgrading with Helm 4
@@ -51307,6 +51663,99 @@ NVIDIA publishes no CPU-only image; its images run models on the CPU on nodes wi
 NVIDIA's `26.09-py3` image is 8.4 GiB compressed for amd64, so a Knative deployment that scales up from zero on a node without the image waits for the pull.
 
 ================================================================================
+# vLLM Serving Runtimes
+Source: https://docs.hopsworks.ai/latest/setup_installation/admin/vllm/
+
+# vLLM serving runtimes { #vllm-admin }
+
+Hopsworks serves vLLM deployments with two KServe runtimes: `vllm-openai` for the standard **vLLM** variant and `vllm-omni` for **vLLM-Omni**.
+Both run the upstream vLLM images unchanged, and the Hopsworks Helm chart sets one default image tag for each.
+vLLM-Omni is enabled by default and can be [disabled][vllm-disable-omni] per cluster.
+
+For choosing the variant and image version of a deployment, see [vLLM variant and image version][vllm-variant-and-image-version].
+
+## Image tags { #vllm-image-tags }
+
+Each runtime has an image tag, which the runtime starts by default, and a list of advertised tags, which users can choose from:
+
+| Runtime | Image tag | Advertised tags |
+| --- | --- | --- |
+| `vllm-openai` | `kserve.kserve.servingruntime.vllmopenai.tag` | `hopsworks.variables.kube_serving_vllm_versions` |
+| `vllm-omni` | `kserve.kserve.servingruntime.vllmomni.tag` | `hopsworks.variables.kube_serving_vllm_omni_versions` |
+
+The advertised tags are a comma-separated list.
+Users choose from them in the UI and with `vllm_image_tag` in the Python client, and a deployment that names no tag gets the highest of them.
+By default the chart advertises only the image tag of each runtime.
+
+Set the keys in the table to change them.
+The chart's `global._kserve.servingruntime.vllmopenai.tag` and `global._kserve.servingruntime.vllmomni.tag` only fill in these keys' defaults inside the chart, so setting them in your own values changes nothing.
+
+```yaml
+kserve:
+  kserve:
+    servingruntime:
+      vllmopenai:
+        tag: "v0.34.0"
+hopsworks:
+  variables:
+    kube_serving_vllm_versions: "v0.34.0,v0.32.0"
+```
+
+The advertised tags are returned by the REST API:
+
+```bash
+curl -H "authorization: ApiKey <api_key>" \
+  "https://<HOPSWORKS_HOST>/hopsworks-api/api/project/<project_id>/serving/vllmImageTags"
+```
+
+```json
+{"items": [
+  {"variant": "VLLM", "tags": ["v0.34.0", "v0.32.0"], "defaultTag": "v0.34.0"},
+  {"variant": "VLLM_OMNI", "tags": ["v0.32.0"], "defaultTag": "v0.32.0"}
+]}
+```
+
+Each deployment stores its tag and keeps it when the chart's tag changes, through upgrades, restarts and edits that leave the tag unchanged.
+A deployment also keeps its stored tag after the tag is no longer advertised.
+Users must pick an advertised tag only when they create a deployment or change its tag, so moving an existing deployment to a new tag is an edit of that deployment.
+
+A deployment runs `<registry>/vllm/vllm-openai:<deployment tag>` or `<registry>/vllm/vllm-omni:<deployment tag>`.
+With `kserve.kserve.servingruntime.vllmopenai.cpu.enabled: true`, the `vllm-openai` runtime runs `<registry>/vllm/vllm-openai-cpu:<deployment tag>` instead, with the same tag.
+The registry is `kserve.kserve.servingruntime.vllmopenai.imageRegistry` or `kserve.kserve.servingruntime.vllmomni.imageRegistry`, and `global._hopsworks.imageRegistry` when that is empty.
+Every tag that deployments use must exist in that registry, so keep the old tags when you mirror a new one.
+
+## Disable vLLM-Omni { #vllm-disable-omni }
+
+Set this value on the Hopsworks chart and run `helm upgrade`:
+
+```yaml
+global:
+  _kserve:
+    servingruntime:
+      vllmomni:
+        enabled: false
+```
+
+With vLLM-Omni disabled:
+
+- The chart renders no `vllm-omni` ClusterServingRuntime and no longer references the `vllm/vllm-omni` image.
+- The chart sets `kube_serving_vllm_omni_versions` to an empty list.
+- The UI does not offer vLLM-Omni for new deployments, and `ms.get_vllm_image_tags(variant="VLLM_OMNI")` returns an empty list.
+- Hopsworks refuses to create, update or start a vLLM-Omni deployment, or to roll a deployment back to a vLLM-Omni version, with error code `240080`.
+- Stopping and deleting vLLM-Omni deployments still works, and an existing vLLM-Omni deployment can be switched to the vLLM variant.
+
+Disabling vLLM-Omni does not stop deployments that are running or remove images the nodes have already pulled.
+Stop or delete the vLLM-Omni deployments before you disable it.
+Hopsworks does not start them again while vLLM-Omni is disabled.
+
+With ArgoCD, the `vllm-omni` ClusterServingRuntime is removed only when the sync prunes resources.
+
+The Helm value is the persistent setting.
+An administrator can also change `kube_serving_vllm_omni_versions` in the [cluster configuration][cluster-configuration], which takes effect at once, but the next `helm upgrade` sets it back from the chart.
+
+To enable vLLM-Omni again, set `enabled: true`, the default, and run `helm upgrade`.
+
+================================================================================
 # Helm chart values reference
 Source: https://docs.hopsworks.ai/latest/setup_installation/common/helm_chart_values/
 
@@ -52061,6 +52510,11 @@ Source: https://docs.hopsworks.ai/latest/python-api/hopsworks/core/
       show_root_heading: true
 
 ::: hopsworks_common.core.sink_job_configuration.TableIngestionTarget
+    options:
+      heading_level: 2
+      show_root_heading: true
+
+::: hsfs.core.files_ingestion.FilesIngestionJob
     options:
       heading_level: 2
       show_root_heading: true
@@ -53802,6 +54256,11 @@ Source: https://docs.hopsworks.ai/latest/python-api/hsfs/storage_connector/
       heading_level: 2
       show_root_heading: true
 
+::: hsfs.storage_connector.GoogleDriveConnector
+    options:
+      heading_level: 2
+      show_root_heading: true
+
 ::: hsfs.storage_connector.GoogleSheetsConnector
     options:
       heading_level: 2
@@ -53858,6 +54317,11 @@ Source: https://docs.hopsworks.ai/latest/python-api/hsfs/storage_connector/
       show_root_heading: true
 
 ::: hsfs.storage_connector.SapHanaConnector
+    options:
+      heading_level: 2
+      show_root_heading: true
+
+::: hsfs.storage_connector.SftpConnector
     options:
       heading_level: 2
       show_root_heading: true
@@ -56130,6 +56594,7 @@ When you upgrade, read the breaking changes of every release between yours and t
 
 | Helm chart | Released | Python client |
 | ---------- | -------- | ------------- |
+| [5.2.6][hopsworks-5-2-6] | 2026-11-23 | [5.2.4](https://github.com/logicalclocks/hopsworks-api/releases/tag/5.2.4) |
 | [5.2.5][hopsworks-5-2-5] | 2026-11-17 | [5.2.4](https://github.com/logicalclocks/hopsworks-api/releases/tag/5.2.4) |
 | [5.2.4][hopsworks-5-2-4] | 2026-11-05 | [5.2.3](https://github.com/logicalclocks/hopsworks-api/releases/tag/5.2.3) |
 | [5.2.3][hopsworks-5-2-3] | 2026-10-29 | [5.2.2](https://github.com/logicalclocks/hopsworks-api/releases/tag/5.2.2) |
@@ -56163,6 +56628,39 @@ Source: https://docs.hopsworks.ai/latest/releases/5.2/
 # Release notes { #hopsworks-5-2 }
 
 The releases of Hopsworks 5.2, newest first.
+
+## 5.2.6 { #hopsworks-5-2-6 }
+
+Helm chart 5.2.6 · Released on 2026-11-23 · Changes since [5.2.5][hopsworks-5-2-5] · Python client [5.2.4](https://github.com/logicalclocks/hopsworks-api/releases/tag/5.2.4), unchanged
+
+### What's changed
+
+- [HELM] Fixed `helm upgrade` leaving a schema migration recorded as failed, so that every retry failed, when it ran during the RonDB rolling restart, such as the HopsFS migration of an upgrade to 5.2.5: the pods that run migrations now wait until the upgrade has restarted RonDB, and the Hopsworks CA is unavailable until then ([Schema migrations wait for the RonDB restart][docs-upgrade-migrations-wait-rondb]).
+- [HELM] Fixed RonDB's MySQL servers staying in `Init` when they restarted while a data node was down, although its node group kept serving from another data node: they now wait for one started data node per node group, then at most `rondb.rondb.timeoutsMinutes.waitAllDatanodes` minutes for the others, and start about 2 minutes sooner when `rondb.rondb.clusterSize.activeDataReplicas` is below 3, as with the default of 2.
+- [HELM] Fixed the data nodes of a new RonDB cluster filling their disk at first start: the volume that `rondb.rondb.resources.requests.storage.classes.diskColumns` gives the on-disk columns is now sized `diskColumnGiB` plus 3% plus 2 GiB instead of plus 2 GiB, which was too small above about 60 GiB, and the install-time check of `rondb.rondb.resources.requests.storage.ndbmtdGiB` now counts the on-disk columns that share its volume and 3% plus 2 GiB for the filesystem, so an install that would fill it fails at render.
+- Addressed vulnerabilities in Istio.
+
+### Breaking changes
+
+- [HELM] Mirror `istio/pilot` and `istio/proxyv2` at `1.30.8` to your registry before the upgrade when `global._hopsworks.imageRegistry` points at your own, or the Istio install hook fails: Istio moves from 1.29 to 1.30 ([Istio 1.30][docs-upgrade-istio-130]).
+- [HELM] Under ArgoCD, if `rondb.rondb.resources.requests.storage.classes.diskColumns` gives RonDB's on-disk columns a volume of their own, set `rondb.rondb.resources.requests.storage.diskColumnVolumeGiB` to the size of its existing volume claim before the upgrade, or the sync fails on the `node-group` StatefulSets: the chart now sizes that volume larger than earlier releases did, and ArgoCD's render cannot read the existing size ([RonDB disk-column volume with ArgoCD][docs-upgrade-rondb-disk-column-volume]).
+
+### Upgrade steps
+
+Follow [Changes from 5.2.6][docs-upgrade-changes-from-526] in the upgrade guide.
+
+### Upgraded components
+
+| Component | 5.2.5 | 5.2.6 |
+| --------- | ----- | ----- |
+| Istio | 1.29.7 | 1.30.8 |
+| KServe utilities | 0.1.12 | 0.1.14 |
+
+### Configuration changes
+
+- [HELM] Added `global._hopsworks.rondbRolloutProgressDeadlineSeconds` (default `3600`), the progress deadline of the Deployments whose new pods wait for the RonDB restart during an upgrade, and changed the default of `trino.trino.coordinator.deployment.progressDeadlineSeconds`, `trino.trino.worker.deployment.progressDeadlineSeconds` and `trino.trinotest.coordinator.deployment.progressDeadlineSeconds`, which Trino takes instead, from `600` to `3600` ([Schema migrations wait for the RonDB restart][docs-upgrade-migrations-wait-rondb]).
+- [HELM] Added `rondb.rondb.resources.requests.storage.diskColumnVolumeGiB` (default empty, which is `diskColumnGiB` plus 3% plus 2 GiB), the size of the volume of RonDB's on-disk columns on install and in a render without cluster access, such as under ArgoCD; a Helm upgrade keeps the size of the existing volume ([RonDB disk-column volume with ArgoCD][docs-upgrade-rondb-disk-column-volume]).
+- [HELM] Added `rondb.rondb.timeoutsMinutes.waitAllDatanodes` (default `2`), how long a starting MySQL server waits for the remaining data nodes once every node group has a started one.
 
 ## 5.2.5 { #hopsworks-5-2-5 }
 
@@ -56871,6 +57369,10 @@ Follow [Before every upgrade][docs-upgrade-before] and [5.1.x to 5.2.x][docs-upg
 [values-kafka-broker-annotations]: https://docs.hopsworks.ai/5.2/setup_installation/common/helm_chart_values/kafka/#helm.kafka.cluster.kafka.externalLoadBalancer.brokerAnnotations
 [values-hopsfs-topology]: https://docs.hopsworks.ai/5.2/setup_installation/common/helm_chart_values/hopsfs/#helm.hopsfs.namenode.topology.enabled
 [values-airflow-manifest]: https://docs.hopsworks.ai/5.2/setup_installation/common/helm_chart_values/airflow/#helm.airflow.hopsworks
+[docs-upgrade-changes-from-526]: https://docs.hopsworks.ai/5.2/setup_installation/admin/upgrade/#upgrade-changes-from-526
+[docs-upgrade-migrations-wait-rondb]: https://docs.hopsworks.ai/5.2/setup_installation/admin/upgrade/#upgrade-migrations-wait-rondb
+[docs-upgrade-rondb-disk-column-volume]: https://docs.hopsworks.ai/5.2/setup_installation/admin/upgrade/#upgrade-rondb-disk-column-volume
+[docs-upgrade-istio-130]: https://docs.hopsworks.ai/5.2/setup_installation/admin/upgrade/#upgrade-istio-130
 
 ================================================================================
 # 5.1

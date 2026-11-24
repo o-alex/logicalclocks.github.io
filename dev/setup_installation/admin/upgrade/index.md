@@ -205,6 +205,13 @@ consul {
 
 This is the form for the default setup, in which the chart configures the cluster DNS through the `coredns` ConfigMap and sets `CONSUL_SERVER` on the CoreDNS Deployment.
 
+### A HopsFS schema migration is recorded as failed { #upgrade-migration-rondb-restart }
+
+After an upgrade from 5.2.4 or earlier to 5.2.5, the new `namenode` pod can stay in `Init:CrashLoopBackOff`, with its `initialize-flyway` container logging ``ERROR: Schema `hops` contains a failed migration to version 3.4.3.4 !`` on every retry.
+The migration started before the upgrade restarted RonDB, and the restart interrupted it.
+This is fixed in 5.2.6, as described under [Schema migrations wait for the RonDB restart][upgrade-migrations-wait-rondb].
+To recover a cluster in that state, contact Hopsworks support.
+
 ## 5.2.x to 5.3.x { #upgrade-52-to-53 }
 
 OpenSearch stays on 3.8.0.
@@ -672,13 +679,13 @@ With the topic ID, OnlineFS reads a topic that was deleted and created again und
   A pod that starts later copies only project tables not listed yet.
 - **The project tables stay until every OnlineFS pod runs 5.3.**
   An OnlineFS pod of 5.2 reads its project's table each time Kafka gives it partitions, as during the rollout.
-  The `onlinefs-drop-legacy-offsets-<hash>-r<revision>` Job waits for the rollout of the OnlineFS Deployment to finish, then drops the listed project tables.
+  The `onlinefs-drop-legacy-offsets-<hash>-r<revision>` Job waits for the rollouts of the RonDB StatefulSets and of the OnlineFS Deployment to finish, then drops the listed project tables.
   On a cluster with `global._hopsworks.full_platform: true` it holds the Flyway lease while it drops them, as the schema migrations do.
 - **The init container and the Job connect to the DDL SQL node of the release as `hopsworksroot`**, as the schema migrations do: the `ddl-mysqld` Service of the release, or, when RonDB is managed externally on a release with `global._hopsworks.full_platform: true`, the consul name in `onlinefs.dependencies.mysql.ddlConsulServiceName` (`mysqlddl`).
   A satellite cluster (`global._hopsworks.full_platform: false`) always connects to the Service, also with an external RonDB.
   A cluster that disables the DDL SQL node (`rondb.rondb.meta.ddlMySQLd.enabled: false`) sets `onlinefs.dependencies.mysql.serviceName: mysqld`, and also `onlinefs.dependencies.mysql.ddlConsulServiceName: mysql` when it is not a satellite and RonDB is managed externally.
   `onlinefs.dependencies.mysql.url` overrides both.
-- **With `onlinefs.rbac.useExistingRole`**, the role needs `get`, `list` and `watch` on `deployments`, and on a cluster with `global._hopsworks.full_platform: true` the lease rules of the chart's `onlinefs-role`, for the Job.
+- **With `onlinefs.rbac.useExistingRole`**, the role needs `get`, `list` and `watch` on `deployments` and `statefulsets`, `get` and `watch` on `statefulsets/status`, and on a cluster with `global._hopsworks.full_platform: true` the lease rules of the chart's `onlinefs-role`, for the Job.
 - **A step that fails keeps the pod from starting.**
   It reads every project table before it writes, so a step that fails while it copies leaves every project table as it is, and the next start copies them again.
   The pod stays in `Init:Error` or `Init:CrashLoopBackOff`, and the log names the database:
@@ -775,6 +782,17 @@ Before enabling, as listed under [How to enable it][llm-gateway-enable]:
 Enable with one `helm upgrade`: no predictive pod, Knative pod or `kserve-ingress-gateway` pod restarts, and the AI Gateway's Envoy pods roll once when the first route attaches.
 Data Owners can then turn the LLM Gateway off per project and per deployment, both on by default.
 Disable with one upgrade with `aiGateway.enabled: false`, as described under [Turn it off][llm-gateway-disable], which also lists what a `helm rollback` leaves behind and how to remove it.
+
+### vLLM image versions { #upgrade-vllm-image-versions }
+
+Because of a security fix, new vLLM deployments default to `vllm/vllm-openai:v0.34.0`, which is the only vLLM image version the chart advertises.
+Existing vLLM deployments keep the image version they were created with through the upgrade and later restarts.
+Move each of them to v0.34.0 by editing the deployment and selecting v0.34.0 as its image version.
+Check its vLLM configuration file first against the [vLLM v0.34.0 upgrade notes](https://github.com/vllm-project/vllm/releases/tag/v0.34.0): v0.34.0 no longer starts with `VLLM_USE_V2_MODEL_RUNNER=0`, and an unset `gpu_memory_utilization` now defaults to `1.0`.
+A cluster that pulls from a mirror needs `vllm/vllm-openai:v0.34.0` mirrored before the upgrade, or `vllm/vllm-openai-cpu:v0.34.0` when it runs vLLM on CPU, and keeps the versions its existing deployments use, see [Image tags][vllm-image-tags].
+
+The chart's vLLM-Omni version stays `v0.32.0`, and existing vLLM-Omni deployments keep the version they were created with.
+vLLM-Omni can now be disabled per cluster, see [Disable vLLM-Omni][vllm-disable-omni].
 
 ### Security response headers { #upgrade-security-headers }
 
@@ -906,3 +924,38 @@ Istio 1.30 supports Kubernetes 1.32 to 1.36, and Istio supports the 1.30 release
   Do not run `helm upgrade`, or an ArgoCD sync, with a release older than 5.2.5 afterwards: its hook installs Istio 1.29 over 1.30, a downgrade Istio does not support.
   To go back entirely, restore the backup on a new cluster, as described in [New Cluster Restore][new-cluster-restore].
   An in-place restore does not apply here, since it runs `helm upgrade` with the release of the backup, whose Istio install hook installs Istio 1.29 over 1.30.
+
+## Changes from 5.2.6 { #upgrade-changes-from-526 }
+
+These changes ship in 5.2.6 and 5.3.0.
+They apply to an upgrade from 5.1.x to 5.2.6 or later, from an earlier 5.2 release to 5.2.6 or later, and from 5.2.5 or earlier to 5.3.
+5.1.4 and 5.0.16 carry the same changes, so they also apply to an upgrade to 5.1.4 or to 5.0.16.
+
+### Schema migrations wait for the RonDB restart { #upgrade-migrations-wait-rondb }
+
+The pods that run schema migrations, of the HopsFS namenode, the Hopsworks CA and the Hive metastore, wait until the upgrade has restarted RonDB before they migrate.
+
+- **Availability.**
+  The Hopsworks CA is unavailable from the moment the upgrade replaces its pod until the RonDB restart has finished, and so is the Hopsworks admin server when the release changes the Hopsworks schema.
+- **Time.**
+  On a cluster whose RonDB restart takes longer than an hour, raise `global._hopsworks.rondbRolloutProgressDeadlineSeconds` (3600 seconds) together with `helm upgrade --timeout`.
+  Past that deadline, Helm 4 and ArgoCD report the upgrade as failed although the rollout continues.
+- **ArgoCD.**
+  Sync the RonDB StatefulSets in the same sync and sync wave as the Deployments, because those pods wait until the sync has updated the StatefulSets.
+- **If the upgrade fails.**
+  Those pods keep waiting.
+  Fix the cause and run the upgrade again: they continue without being deleted.
+
+### RonDB disk-column volume with ArgoCD { #upgrade-rondb-disk-column-volume }
+
+A cluster that keeps RonDB's on-disk columns on a volume of their own (`rondb.rondb.resources.requests.storage.classes.diskColumns`) and is upgraded with ArgoCD states the size of that volume before the upgrade.
+The chart now sizes that volume larger for a new cluster, and ArgoCD cannot read the size of an existing one, so without the value the sync fails on the `node-group` StatefulSets, whose volume claims Kubernetes does not let change.
+Read the size of the existing volume claim:
+
+```sh
+kubectl get statefulset node-group-0 -n hopsworks \
+  -o jsonpath='{.spec.volumeClaimTemplates[?(@.metadata.name=="rondb-ndbmtd-dc")].spec.resources.requests.storage}'
+```
+
+Set `rondb.rondb.resources.requests.storage.diskColumnVolumeGiB` to that number of GiB, and keep it set in later upgrades.
+An upgrade with Helm keeps the existing size by itself.

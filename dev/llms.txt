@@ -362,6 +362,7 @@
 - [Custom Project Roles](https://docs.hopsworks.ai/latest/setup_installation/admin/project_roles/) ([md](https://docs.hopsworks.ai/latest/setup_installation/admin/project_roles/index.md))
 - [Configure Alerts](https://docs.hopsworks.ai/latest/setup_installation/admin/alert/) ([md](https://docs.hopsworks.ai/latest/setup_installation/admin/alert/index.md))
 - [IAM Role Chaining](https://docs.hopsworks.ai/latest/setup_installation/admin/roleChaining/) ([md](https://docs.hopsworks.ai/latest/setup_installation/admin/roleChaining/index.md))
+- [Private CA Trust](https://docs.hopsworks.ai/latest/setup_installation/admin/private_ca/) ([md](https://docs.hopsworks.ai/latest/setup_installation/admin/private_ca/index.md))
 - [Configure Project Mapping](https://docs.hopsworks.ai/latest/setup_installation/admin/configure-project-mapping/) ([md](https://docs.hopsworks.ai/latest/setup_installation/admin/configure-project-mapping/index.md))
 - [Airflow 3 operator notes](https://docs.hopsworks.ai/latest/setup_installation/admin/airflow3/) ([md](https://docs.hopsworks.ai/latest/setup_installation/admin/airflow3/index.md))
 - [Search Index](https://docs.hopsworks.ai/latest/setup_installation/admin/search_index/) ([md](https://docs.hopsworks.ai/latest/setup_installation/admin/search_index/index.md))
@@ -420,6 +421,7 @@
 - [Semantic Layer](https://docs.hopsworks.ai/latest/setup_installation/admin/semantic_layer/) ([md](https://docs.hopsworks.ai/latest/setup_installation/admin/semantic_layer/index.md))
 - [GPU Scheduling with Run:ai](https://docs.hopsworks.ai/latest/setup_installation/admin/run_ai/) ([md](https://docs.hopsworks.ai/latest/setup_installation/admin/run_ai/index.md))
 - [Triton Inference Server](https://docs.hopsworks.ai/latest/setup_installation/admin/triton/) ([md](https://docs.hopsworks.ai/latest/setup_installation/admin/triton/index.md))
+- [vLLM Serving Runtimes](https://docs.hopsworks.ai/latest/setup_installation/admin/vllm/) ([md](https://docs.hopsworks.ai/latest/setup_installation/admin/vllm/index.md))
 
 ### Helm Chart Values Reference
 - [Helm chart values reference](https://docs.hopsworks.ai/latest/setup_installation/common/helm_chart_values/) ([md](https://docs.hopsworks.ai/latest/setup_installation/common/helm_chart_values/index.md))
